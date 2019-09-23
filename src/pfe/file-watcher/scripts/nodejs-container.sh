@@ -278,7 +278,7 @@ function dockerRun() {
 	workspace=`$util getWorkspacePathForVolumeMounting $LOCAL_WORKSPACE`
 	echo "Workspace path used for volume mounting is: "$workspace""
 
-	$IMAGE_COMMAND run --network=codewind_network -e $heapdump --name $project -p 127.0.0.1::$DEBUG_PORT -P -dt -v "$workspace/$projectName":/app -v $project-nodemodules:/app/node_modules $project /bin/bash -c "$dockerCmd";
+	$IMAGE_COMMAND run --network=codewind_network -e $heapdump --name $project -p 127.0.0.1::$DEBUG_PORT -P -dt -v $project-nodemodules:/app/node_modules $project /bin/bash -c "$dockerCmd";
 }
 
 function deployLocal() {

@@ -17,6 +17,7 @@ const zlib = require("zlib");
 const { promisify } = require('util');
 const inflateAsync = promisify(zlib.inflate);
 const exec = promisify(require('child_process').exec);
+const docker = require('../../modules/utils/dockerFunctions');
 
 const Logger = require('../../modules/utils/Logger');
 const Project = require('../../modules/Project');
@@ -138,6 +139,19 @@ router.put('/api/v1/projects/:id/remote-bind/upload', async (req, res) => {
       const fileToWrite = JSON.parse(unzippedFile.toString());
       const pathToWriteTo = path.join(global.codewind.CODEWIND_WORKSPACE, project.name, relativePathOfFile)
       await fs.outputFile(pathToWriteTo, fileToWrite);
+
+      console.log("in remotebindupload before exec");
+      console.log(`docker cp ${relativePathOfFile} ${project.containerId}:app/${relativePathOfFile}`);
+
+      // remove codewind-workspace/projname
+
+      await docker.exec(project, `docker cp ${relativePathOfFile} ${project.containerId}:app/${relativePathOfFile}`);
+
+      console.log("in remotebindupload after exec");
+  
+      // and now also docker cp to the container if its running
+
+
       res.sendStatus(200);
     } else {
       res.sendStatus(404);
