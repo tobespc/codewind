@@ -137,17 +137,20 @@ router.put('/api/v1/projects/:id/remote-bind/upload', async (req, res) => {
       const zippedFile = buffer.Buffer.from(req.body.msg, "base64"); // eslint-disable-line microclimate-portal-eslint/sanitise-body-parameters
       const unzippedFile = await inflateAsync(zippedFile);
       const fileToWrite = JSON.parse(unzippedFile.toString());
-      const pathToWriteTo = path.join(global.codewind.CODEWIND_WORKSPACE, project.name, relativePathOfFile)
-      await fs.outputFile(pathToWriteTo, fileToWrite);
+      
+      //console.log(`filetowrite is ======= ${fileToWrite}`);
 
-      console.log("in remotebindupload before exec");
-      console.log(`docker cp ${relativePathOfFile} ${project.containerId}:app/${relativePathOfFile}`);
+      const pathToWriteTo = path.join(global.codewind.CODEWIND_WORKSPACE, project.name, relativePathOfFile)
+      await fs.outputFileSync(pathToWriteTo, fileToWrite);
+
+      //console.log("in remotebindupload before exec");
+     // console.log(`docker cp ${pathToWriteTo} ${project.containerId}:app/${relativePathOfFile}`);
 
       // remove codewind-workspace/projname
 
-      await docker.exec(project, `docker cp ${relativePathOfFile} ${project.containerId}:app/${relativePathOfFile}`);
+      //await docker.exec(project, `docker cp ${pathToWriteTo} ${project.containerId}:app/${relativePathOfFile}`);
 
-      console.log("in remotebindupload after exec");
+      //console.log("in remotebindupload after exec");
   
       // and now also docker cp to the container if its running
 
