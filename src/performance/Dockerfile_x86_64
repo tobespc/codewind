@@ -12,9 +12,9 @@
 ################################################################################
 # Multi stage DockerFile to build the performance UI and a Docker runtime image
 ################################################################################
+FROM registry.access.redhat.com/ubi8/nodejs-10 as build-performance-ui
 
-FROM node:10-alpine AS build-performance-ui
-
+USER root
 # Create UI app directory and install source code
 WORKDIR /usr/src/app
 
@@ -38,8 +38,8 @@ RUN npm run build
 # We now have a built ui, begin setup of a new runtime image
 ############################################################
 
-FROM node:10-alpine
-
+FROM registry.access.redhat.com/ubi8/nodejs-10 
+USER root
 LABEL org.opencontainers.image.title="Codewind-Performance" org.opencontainers.image.description="Codewind Performance" \
       org.opencontainers.image.url="https://codewind.dev/" \
       org.opencontainers.image.source="https://github.com/eclipse/codewind"

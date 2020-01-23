@@ -9,8 +9,9 @@
 #     IBM Corporation - initial API and implementation
 #*******************************************************************************
 #FROM centos as codewind-pfe-base
-
-FROM centos@sha256:f94c1d992c193b3dc09e297ffd54d8a4f1dc946c37cbeceb26d35ce1647f88d9 as codewind-pfe-base
+FROM registry.access.redhat.com/ubi8/nodejs-10 as codewind-pfe-base
+USER root
+#FROM centos@sha256:f94c1d992c193b3dc09e297ffd54d8a4f1dc946c37cbeceb26d35ce1647f88d9 as codewind-pfe-base
 LABEL org.opencontainers.image.title="Codewind-PFE" org.opencontainers.image.description="Codewind PFE" \
       org.opencontainers.image.url="https://codewind.dev/" \
       org.opencontainers.image.source="https://github.com/eclipse/codewind"
@@ -25,21 +26,21 @@ RUN curl -f -o slirp4netns.rpm $SLIRP
 RUN curl -f -o libseccomp.rpm $LIBSEC
 
 # Download and set up Node 10.x RPM
-RUN curl -sL https://rpm.nodesource.com/setup_10.x | bash -
+#RUN curl -sL https://rpm.nodesource.com/setup_10.x | bash -
 
-RUN yum install -y epel-release \
-    && yum -y --enablerepo=epel install zip unzip sudo ca-certificates openssl nodejs slirp4netns.rpm libseccomp.rpm buildah.rpm \
+#RUN yum install -y epel-release \
+RUN yum -y install zip  sudo  slirp4netns.rpm libseccomp.rpm  \
     && yum clean all \
     && rm -rf /var/cache/yum
 
 # Install docker client only
-RUN cd /tmp \
-    && curl -O https://download.docker.com/linux/static/stable/x86_64/docker-18.09.6.tgz \
-    && echo '1f3f6774117765279fce64ee7f76abbb5f260264548cf80631d68fb2d795bb09  docker-18.09.6.tgz' | sha256sum -c - \
-    && tar -xvf docker-18.09.6.tgz docker/docker \
-    && cp /tmp/docker/docker /usr/bin/docker \
-    && rm -rf /tmp/docker /tmp/docker-18.09.6.tgz \
-    && chown root:root /usr/bin/docker
+#RUN cd /tmp \
+#    && curl -O https://download.docker.com/linux/static/stable/x86_64/docker-18.09.6.tgz \
+#    && echo '1f3f6774117765279fce64ee7f76abbb5f260264548cf80631d68fb2d795bb09  docker-18.09.6.tgz' | sha256sum -c - \
+#    && tar -xvf docker-18.09.6.tgz docker/docker \
+#    && cp /tmp/docker/docker /usr/bin/docker \
+#    && rm -rf /tmp/docker /tmp/docker-18.09.6.tgz \
+#    && chown root:root /usr/bin/docker
 
 # Download OpenJ9 JRE, fixed to jre8u212-b04_openj9-0.14.2 version
 RUN cd /tmp \
@@ -64,18 +65,18 @@ RUN LATEST_RELEASE=$(curl -L -s -H 'Accept: application/json' https://github.com
     && chmod +x /usr/local/bin/yq
 
 # Install kubectl
-RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl \
-    && chmod +x ./kubectl \
-    && mv ./kubectl /usr/local/bin/kubectl
+#RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl \
+#    && chmod +x ./kubectl \
+#    && mv ./kubectl /usr/local/bin/kubectl
 
 # Install helm, fixed to the 3.0.0 version
-RUN cd /tmp \ 
-    && curl -O https://get.helm.sh/helm-v3.0.0-linux-amd64.tar.gz \
-    && echo '10e1fdcca263062b1d7b2cb93a924be1ef3dd6c381263d8151dd1a20a3d8c0dc  helm-v3.0.0-linux-amd64.tar.gz' | sha256sum -c - \
-    && tar -xvf helm-v3.0.0-linux-amd64.tar.gz \
-    && cp /tmp/linux-amd64/helm /usr/local/bin/helm \
-    && chmod +x /usr/local/bin/helm \
-    && rm -rf /tmp/linux-amd64 /tmp/helm-v3.0.0-linux-amd64.tar.gz
+#RUN cd /tmp \ 
+#    && curl -O https://get.helm.sh/helm-v3.0.0-linux-amd64.tar.gz \
+#    && echo '10e1fdcca263062b1d7b2cb93a924be1ef3dd6c381263d8151dd1a20a3d8c0dc  helm-v3.0.0-linux-amd64.tar.gz' | sha256sum -c - \
+#    && tar -xvf helm-v3.0.0-linux-amd64.tar.gz \
+#    && cp /tmp/linux-amd64/helm /usr/local/bin/helm \
+#    && chmod +x /usr/local/bin/helm \
+#    && rm -rf /tmp/linux-amd64 /tmp/helm-v3.0.0-linux-amd64.tar.gz
 
 WORKDIR /
 # Softlink to /codewind-workspace to /projects so paths
