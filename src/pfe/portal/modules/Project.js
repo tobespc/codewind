@@ -23,6 +23,8 @@ const ProjectMetricsError = require('./utils/errors/ProjectMetricsError');
 const Logger = require('./utils/Logger');
 const LogStream = require('./LogStream');
 const metricsService = require('./metricsService');
+const { promisify } = require('util');
+const mkDirAsync = promisify(fs.mkdir);
 
 const log = new Logger(__filename);
 
@@ -511,6 +513,9 @@ module.exports = class Project {
    */
   async getPathToProfilingFile(timeOfTestRun) {
     const pathToLoadTestDir = join(this.loadTestPath, String(timeOfTestRun));
+    const pathToHCD = join(pathToLoadTestDir,"hcd");
+    await fs.ensureDir(pathToHCD);
+    log.info("[TOBES] pathtohcd is " + pathToHCD);
     if (this.language == 'nodejs') {
       const pathToProfilingJson = join(pathToLoadTestDir, 'profiling.json');
       if (await fs.exists(pathToProfilingJson)) {
@@ -518,26 +523,29 @@ module.exports = class Project {
       }
       throw new ProjectMetricsError('PROFILING_NOT_FOUND', this.name, `profiling.json was not found for load run ${timeOfTestRun}`);
     } else if (this.language == 'java') {
-      let fileName = await isHcdSaved(pathToLoadTestDir)
+      let fileName = await isHcdSaved(join(pathToHCD,String(timeOfTestRun))) 
       if (fileName !== false) {
-        return join(pathToLoadTestDir, fileName)
+        return join(pathToHCD, fileName)
       }
       const projectRoot = join("home", "default", "app");
       const relativePathToFile = join("load-test", timeOfTestRun);
+
       try {
         log.info(`Copying profiling folder for ${this.name} load run ${timeOfTestRun}`)
-        await cwUtils.copyFileFromContainer(this, this.loadTestPath, projectRoot, relativePathToFile);
+
+        await cwUtils.copyFileFromContainer(this, pathToHCD, projectRoot, relativePathToFile);
       } catch (error) {
         throw new ProjectMetricsError('DOCKER_CP', this.name, error.message);
       }
       log.info(`${this.name} profiling folder from run ${timeOfTestRun} saved to pfe`)
-      fileName = await isHcdSaved(pathToLoadTestDir)
+      fileName = await isHcdSaved(join(pathToHCD,String(timeOfTestRun)))
       if (fileName !== false) {
-        return join(pathToLoadTestDir, fileName)
+        return join(pathToHCD, fileName)
       }
-      await this.removeProfilingData(timeOfTestRun);
+      //await this.removeProfilingData(timeOfTestRun);
       throw new ProjectMetricsError('HCD_NOT_FOUND', this.name, `.hcd file has not been saved for load run ${timeOfTestRun}`);
     }
+    log.info("[TOBES] returning null bottom");
     return null
   }
 
@@ -799,14 +807,19 @@ async function isHcdSaved(pathToLoadTestDir) {
   try {
     await fs.access(pathToLoadTestDir);
   } catch (error) {
+    log.info("[TOBES] isHCDSaved returning false 1");
+    log.info(error);
     return false;
   }
+  console.log("[TOBES] ishcdsaved checking dir " + pathToLoadTestDir)
   const files = await fs.readdir(pathToLoadTestDir);
   for (let i = 0; i < files.length; i++) {
+    log.info("[TOBES] file is " + files[i])
     if (extname(files[i]) == '.hcd') {
       return files[i];
     }
   }
+  log.info("[TOBES] isHCDSaved returning false 2");
   return false
 }
 
