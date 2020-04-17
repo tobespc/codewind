@@ -13,6 +13,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const util = require('util');
 
+const { asyncHttpRequest } = require('./sharedFunctions');
 const MetricsStatusError = require('../utils/errors/MetricsStatusError')
 const Logger = require('../utils/Logger');
 const log = new Logger('metricsStatusChecker.js');
@@ -69,6 +70,69 @@ async function doesMetricsPackageExist(pathOfFileToCheck, projectLanguage) {
   return metricsPackageExists;
 }
 
+async function getActiveMetricsURLs(host, port) {
+  const potentialEndpointsWithMetrics = [
+    '/metrics',
+    '/appmetrics-dash',
+    '/javametrics-dash',
+    '/swiftmetrics-dash',
+    '/actuator/prometheus',
+  ];
+
+  const endpoints = await Promise.all(potentialEndpointsWithMetrics.map(async path => {
+    const isActive = await isMetricsEndpoint(host, port, path);
+    return { path, isActive };
+  }));
+
+  return endpoints.reduce((acc, { path, isActive }) => {
+    acc[path] = isActive
+    return acc;
+  }, {});
+}
+
+async function isMetricsEndpoint(host, port, path) {
+  const options = {
+    host,
+    port,
+    path,
+    method: 'GET',
+  }
+
+  let res;
+  try {
+    res = await asyncHttpRequest(options);
+  } catch(err) {
+    // If the request errors then the metrics endpoint isn't available
+    return false;
+  }
+  const { statusCode, body } = res;
+  const validRes = (statusCode === 200);
+  const isAppmetrics = body.includes('src="graphmetrics/js');
+  const isPrometheus = isPrometheusFormat(body);
+  return (validRes && (isAppmetrics || isPrometheus));
+}
+
+function isPrometheusFormat(string) {
+  // Split string by new lines
+  const lines = string.split('\n');
+  // If the final line is empty, remove it
+  if (lines[lines.length-1] === "") lines.pop();
+  // Ensure number of spaces on each line is 1 (ignoring comment lines)
+  const { length: numberOfValidPrometheusLines } = lines.filter(line => {
+    // Ignore lines beginning with # as they are comments
+    const lineIsComment = line.startsWith('#');
+    // Valid prometheus metrics are in the format "name metric"
+    // e.g. api_http_requests_total{method="POST", handler="/messages"} value
+    // Remove everything between "{}" and the brackets themselves
+    const validatedLine = line.replace(/{.*}/, '');
+    // Ensure there is only one space between the metric name and value
+    const validMetric = (validatedLine.split(" ").length-1) === 1;
+    return lineIsComment || validMetric;
+  });
+  return lines.length === numberOfValidPrometheusLines;
+}
+
 module.exports = {
-  isMetricsAvailable
+  isMetricsAvailable,
+  getActiveMetricsURLs,
 }

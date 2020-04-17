@@ -16,7 +16,9 @@ const ProjectError = require('../../modules/utils/errors/ProjectError');
 const ProjectMetricsError = require('../../modules/utils/errors/ProjectMetricsError');
 const Project = require('../../modules/Project');
 const { validateReq } = require('../../middleware/reqValidator');
+const { checkProjectExists, getProjectFromReq } = require('../../middleware/checkProjectExists');
 const metricsController = require('../../controllers/metrics.controller');
+const { getActiveMetricsURLs } = require('../../modules/utils/metricsStatusChecker');
 
 const router = express.Router();
 const log = new Logger(__filename);
@@ -84,6 +86,12 @@ router.get('/api/v1/projects/:id/metrics/status', async function (req, res) {
       res.status(500).send(err.info || err);
     }
   }
+});
+
+router.get('/api/v1/projects/:id/metrics/endpoints', checkProjectExists, async function (req, res) {
+  const { host, ports: { internalPort } } = getProjectFromReq(req);
+  const metricEndpoints = await getActiveMetricsURLs(host, internalPort);
+  res.send(metricEndpoints);
 });
 
 /**
