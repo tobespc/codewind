@@ -90,8 +90,12 @@ router.get('/api/v1/projects/:id/metrics/status', async function (req, res) {
 
 router.get('/api/v1/projects/:id/metrics/endpoints', checkProjectExists, async function (req, res) {
   const { host, ports: { internalPort } } = getProjectFromReq(req);
-  const metricEndpoints = await getActiveMetricsURLs(host, internalPort);
-  res.send(metricEndpoints);
+  try {
+    const metricEndpoints = await getActiveMetricsURLs(host, internalPort);
+    res.send(metricEndpoints);
+  } catch (err) {
+    res.status(500).send(err);
+  }
 });
 
 /**

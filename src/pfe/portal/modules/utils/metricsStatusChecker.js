@@ -11,14 +11,11 @@
 
 const fs = require('fs-extra');
 const path = require('path');
-const util = require('util');
 
 const { asyncHttpRequest } = require('./sharedFunctions');
 const MetricsStatusError = require('../utils/errors/MetricsStatusError')
 const Logger = require('../utils/Logger');
 const log = new Logger('metricsStatusChecker.js');
-
-const readFile = util.promisify(fs.readFile);
 
 const filesToCheck = {
   java : 'pom.xml',
@@ -39,17 +36,17 @@ async function isMetricsAvailable(projectPath, projectLanguage) {
   if (!fileToCheck) {
     return false; // not a language with supported metrics
   }
-  const pathOfFileToCheck = await path.join(projectPath, fileToCheck);
+  const pathOfFileToCheck = path.join(projectPath, fileToCheck);
   if (await fs.pathExists(pathOfFileToCheck)) {
     return doesMetricsPackageExist(pathOfFileToCheck, projectLanguage)
   }
-  throw new MetricsStatusError("BUILD_FILE_MISSING", `Cannot find project build-file (${fileToCheck})`);
+  throw new MetricsStatusError('BUILD_FILE_MISSING', `Cannot find project build-file (${fileToCheck})`);
 }
 
 async function doesMetricsPackageExist(pathOfFileToCheck, projectLanguage) {
   let metricsPackageExists = false; // default to appmetrics unavailable
   try {
-    const fileToCheck = await readFile(pathOfFileToCheck, 'utf8');
+    const fileToCheck = await fs.readFile(pathOfFileToCheck, 'utf8');
     if (projectLanguage === 'nodejs' || projectLanguage === 'javascript') {
       const packageJSON = JSON.parse(fileToCheck);
       // There might not be any dependencies
@@ -107,9 +104,17 @@ async function isMetricsEndpoint(host, port, path) {
   }
   const { statusCode, body } = res;
   const validRes = (statusCode === 200);
-  const isAppmetrics = body.includes('src="graphmetrics/js');
+  if (!validRes || !body) {
+    return false;
+  }
+
+  const isAppmetrics = isAppmetricsFormat(body);
   const isPrometheus = isPrometheusFormat(body);
-  return (validRes && (isAppmetrics || isPrometheus));
+  return (isAppmetrics || isPrometheus);
+}
+
+function isAppmetricsFormat(html) {
+  return html.includes('src="graphmetrics/js');
 }
 
 function isPrometheusFormat(string) {
