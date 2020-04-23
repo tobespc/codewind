@@ -287,7 +287,6 @@ async function uploadEnd(req, res) {
     let updatedProject = {
       projectID,
       creationTime: timeStamp,
-      metricsAvailable: await project.isMetricsAvailable(),
     }
     await user.projectList.updateProject(updatedProject);
 
@@ -458,7 +457,6 @@ async function bindEnd(req, res) {
       projectID,
       state: Project.STATES.open,
       startMode: 'run', // always use 'run' mode for new or recently re-opened projects
-      metricsAvailable: await project.isMetricsAvailable(),
     }
     user.uiSocket.emit('projectStatusChanged', updatedProject);
     await user.projectList.updateProject(updatedProject);

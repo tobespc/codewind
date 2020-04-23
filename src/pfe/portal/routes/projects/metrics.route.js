@@ -16,7 +16,9 @@ const ProjectError = require('../../modules/utils/errors/ProjectError');
 const ProjectMetricsError = require('../../modules/utils/errors/ProjectMetricsError');
 const Project = require('../../modules/Project');
 const { validateReq } = require('../../middleware/reqValidator');
+const { checkProjectExists, getProjectFromReq } = require('../../middleware/checkProjectExists');
 const metricsController = require('../../controllers/metrics.controller');
+const { getMetricStatusForProject, getActiveMetricsURLs } = require('../../modules/utils/metricsStatusChecker');
 
 const router = express.Router();
 const log = new Logger(__filename);
@@ -63,19 +65,11 @@ router.get('/api/v1/projects/:id/metrics', function (req, res) {
  * @return 500 on internal error
  */
 
-router.get('/api/v1/projects/:id/metrics/status', async function (req, res) {
+router.get('/api/v1/projects/:id/metrics/status', checkProjectExists, async function (req, res) {
   try {
-    const user = req.cw_user;
-    const projectID = req.sanitizeParams('id');
-    const project = user.projectList.retrieveProject(projectID);
-    if (!project) {
-      const message = `Unable to find project ${projectID}`;
-      log.error(message);
-      res.status(404).send({ message });
-      return;
-    }
-    const metricsAvailable = await project.isMetricsAvailable();
-    res.status(200).send({ metricsAvailable });
+    const project = getProjectFromReq(req);
+    const projectMetrics = await getMetricStatusForProject(project);
+    res.status(200).send(projectMetrics);
   } catch (err) {
     log.error(err.info || err);
     if (err.code === 'BUILD_FILE_MISSING') {
