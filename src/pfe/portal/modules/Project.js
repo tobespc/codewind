@@ -169,50 +169,19 @@ module.exports = class Project {
       : null;
   }
 
-  getMetricsDashHost() {
-    const isMetricsDashAvailable = this.injectMetrics || this.isOpenLiberty || this.metricsAvailable;
-    if (!isMetricsDashAvailable) {
-      return null;
+  async setMetricsState() {
+    const { host, ports: { internalPort }, projectID, language } = this;
+    if (host && internalPort) {
+      const { hosting, path } = await metricsStatusChecker.getMetricsDashboardHostAndPath(host, internalPort, projectID, language);
+      this.metricsAvailable = (hosting !== null && path !== null);
+      this.metricsDashboard = { hosting, path };
+      // this.metricsDashboard = {
+      //   hosting: project.getMetricsDashHost(),
+      //   path: project.getMetricsDashPath(),
+      // };
     }
-    let shouldShowMetricsDashHostedOnProject = false;
-    if (this.projectType === "appsodyExtension") {
-      if (!(this.language === "java")) {
-        shouldShowMetricsDashHostedOnProject = true;
-      }
-    } else {
-      shouldShowMetricsDashHostedOnProject = !this.injectMetrics && this.metricsAvailable;
-    }
-
-    return shouldShowMetricsDashHostedOnProject ? METRICS_DASH_HOST.project : METRICS_DASH_HOST.performanceContainer;
-  }
-  
-  getMetricsDashPath() {
-    const metricsDashHost = this.getMetricsDashHost();
-    if (!metricsDashHost) {
-      return null;
-    }
-    
-    if (metricsDashHost === METRICS_DASH_HOST.project) {
-      return `/${pathsToUserHostedMetricsDashboards[this.language]}/?theme=dark`;
-    }
-
-    if (metricsDashHost === METRICS_DASH_HOST.performanceContainer) {
-      return `/performance/monitor/dashboard/${this.language}?theme=dark&projectID=${this.projectID}`
-    }
-    
-    throw new Error(`unknown metricsDashHost: ${metricsDashHost}`);
   }
 
-  async isMetricsAvailable() {
-    // hardcoding a return of true for appsody projects until we have a better
-    // way of detecting appsody has the dashboard dependency
-    if (this.projectType === "appsodyExtension" && ['nodejs', 'javascript', 'java', 'swift'].includes(this.language)) {
-      return true;
-    } 
-    const isMetricsAvailable = await metricsStatusChecker.isMetricsAvailable(this.projectPath(), this.language);
-    return isMetricsAvailable;
-  }
-  
   async setOpenLiberty() {
     const isProjectOpenLiberty = await metricsService.determineIfOpenLiberty(this.projectType, this.language, this.projectPath());
     // If Open Liberty override canMetricsBeInjected

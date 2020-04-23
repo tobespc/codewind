@@ -76,6 +76,7 @@ router.get('/api/v1/projects/:id/metrics/status', async function (req, res) {
       res.status(404).send({ message });
       return;
     }
+    // Take over this function
     const metricsAvailable = await project.isMetricsAvailable();
     res.status(200).send({ metricsAvailable });
   } catch (err) {

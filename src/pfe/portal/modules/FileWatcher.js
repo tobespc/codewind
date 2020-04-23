@@ -527,6 +527,7 @@ module.exports = class FileWatcher {
         results.error = error;
       }
       let updatedProject = await this.user.projectList.updateProject(projectUpdate);
+      await updatedProject.setMetricsState();
       // remove fields which are not required by the UI
       const { logStreams, ...projectInfoForUI } = updatedProject
       this.user.uiSocket.emit(event, { ...results, ...projectInfoForUI })

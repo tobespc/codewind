@@ -24,6 +24,34 @@ const filesToCheck = {
   swift : 'Package.swift',
 }
 
+const METRICS_DASH_HOST = {
+  project: 'project',
+  performanceContainer: 'performanceContainer',
+};
+
+const VALID_METRIC_ENDPOINT = {
+  metrics: {
+    endpoint: '/metrics',
+    hosting: METRICS_DASH_HOST.performanceContainer,
+  },
+  appmetricsDash: {
+    endpoint: '/appmetrics-dash',
+    hosting: METRICS_DASH_HOST.project,
+  },
+  javametricsDash: {
+    endpoint: '/javametrics-dash',
+    hosting: METRICS_DASH_HOST.project,
+  },
+  swiftmetricsDash: {
+    endpoint: '/swiftmetrics-dash',
+    hosting: METRICS_DASH_HOST.project,
+  },
+  actuatorPrometheus: {
+    endpoint: '/actuator/prometheus', // Spring Appsody applications
+    hosting: METRICS_DASH_HOST.performanceContainer,
+  }
+}
+
 /**
  * @param {*} projectPath
  * @param {*} projectLanguage
@@ -67,24 +95,66 @@ async function doesMetricsPackageExist(pathOfFileToCheck, projectLanguage) {
   return metricsPackageExists;
 }
 
-async function getActiveMetricsURLs(host, port) {
-  const potentialEndpointsWithMetrics = [
-    '/metrics',
-    '/appmetrics-dash',
-    '/javametrics-dash',
-    '/swiftmetrics-dash',
-    '/actuator/prometheus',
+async function getMetricsDashboardHostAndPath(host, port, projectID, projectLanguage) {
+  const endpoints = await getActiveMetricsURLs(host, port);
+  const prioritisedReturnOrder = [
+    VALID_METRIC_ENDPOINT.metrics, // enabled but only for Java while performance dashboard is enhanced to support more /metrics endpoints
+    // VALID_METRIC_ENDPOINT.actuatorPrometheus, not supported in the performance dashboard
+    VALID_METRIC_ENDPOINT.appmetricsDash,
+    VALID_METRIC_ENDPOINT.javametricsDash,
+    VALID_METRIC_ENDPOINT.swiftmetricsDash,
   ];
 
-  const endpoints = await Promise.all(potentialEndpointsWithMetrics.map(async path => {
-    const isActive = await isMetricsEndpoint(host, port, path);
-    return { path, isActive };
+  const dashboardObject = prioritisedReturnOrder.find(({ endpoint }) => {
+    // For Java use /metrics if possible, fall back to javametrics-dash
+    // For Node, force appmetrics-dash while performance dashboard is enhanced to support more /metrics endpoints
+    // Everything else should use *metrics-dash as we can't guarantee we support /metrics for anything
+    if (endpoint === VALID_METRIC_ENDPOINT.metrics.endpoint && projectLanguage !== 'java') {
+      return false;
+    }
+    return endpoints[endpoint] === true;
+  });
+
+  // If no metric endpoints are active, return null
+  if (!dashboardObject) {
+    return {
+      hosting: null,
+      path: null,
+    }
+  }
+
+  const { hosting, endpoint } = dashboardObject;
+  const path = getDashboardPath(hosting, endpoint, projectID, projectLanguage);
+  return {
+    hosting,
+    path,
+  };
+}
+
+async function getActiveMetricsURLs(host, port) {
+  const endpointsToCheck = Object.keys(VALID_METRIC_ENDPOINT).map((name) => VALID_METRIC_ENDPOINT[name].endpoint);
+  const endpoints = await Promise.all(endpointsToCheck.map(async (endpoint) => {
+    const isActive = await isMetricsEndpoint(host, port, endpoint);
+    return { endpoint, isActive };
   }));
 
-  return endpoints.reduce((acc, { path, isActive }) => {
-    acc[path] = isActive
+  return endpoints.reduce((acc, { endpoint, isActive }) => {
+    acc[endpoint] = isActive;
     return acc;
   }, {});
+}
+
+function getDashboardPath(metricsDashHost, projectMetricEndpoint, projectID, language) {
+  if (metricsDashHost === METRICS_DASH_HOST.project) {
+    return `${projectMetricEndpoint}/?theme=dark`;
+  }
+
+  // Currently we only support java and nodejs on the performance dashboard
+  if (['java', 'nodejs'].includes(language) && metricsDashHost === METRICS_DASH_HOST.performanceContainer) {
+    return `/performance/monitor/dashboard/${language}?theme=dark&projectID=${projectID}`
+  }
+
+  return null;
 }
 
 async function isMetricsEndpoint(host, port, path) {
@@ -140,4 +210,5 @@ function isPrometheusFormat(string) {
 module.exports = {
   isMetricsAvailable,
   getActiveMetricsURLs,
+  getMetricsDashboardHostAndPath,
 }

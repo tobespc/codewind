@@ -113,6 +113,66 @@ describe('metricsStatusChecker.js', function() {
             packageExists.should.be.false;
         });
     });
+    describe('getMetricsDashboardHostAndPath(host, port, projectID, projectLanguage)', function() {
+        const { getMetricsDashboardHostAndPath } = metricsStatusChecker;
+        describe('projectLanguage === java', function() {
+            it('returns hosting as the performanceContainer as all endpoints will be active and /metrics is first on the priority list', async function() {
+                metricsStatusChecker.__set__('isMetricsEndpoint', sinon.stub().returns(true));
+                const { hosting, path } = await getMetricsDashboardHostAndPath('host', 'port', 'projectid', 'java');
+                hosting.should.equal('performanceContainer');
+                path.should.equal('/performance/monitor/dashboard/java?theme=dark&projectID=projectid');
+            });
+            it('returns hosting as the project as /metrics is disabled but /javametrics-dash is active', async function() {
+                const mockedIsMetricsEndpoint = sinon.stub().returns(false);
+                mockedIsMetricsEndpoint.withArgs('host', 'port', '/javametrics-dash').returns(true);
+                metricsStatusChecker.__set__('isMetricsEndpoint', mockedIsMetricsEndpoint);
+                const { hosting, path } = await getMetricsDashboardHostAndPath('host', 'port', 'projectid', 'java');
+                hosting.should.equal('project');
+                path.should.equal('/javametrics-dash/?theme=dark');
+            });
+        });
+        describe('projectLanguage === nodejs', function() {
+            it('does not return /metrics even though all it is reachable as it is a nodejs project type (not java)', async function() {
+                metricsStatusChecker.__set__('isMetricsEndpoint', sinon.stub().returns(true));
+                const { hosting, path } = await getMetricsDashboardHostAndPath('host', 'port', 'projectid', 'nodejs');
+                hosting.should.equal('project');
+                path.should.equal('/appmetrics-dash/?theme=dark');
+            });
+            it('returns hosting as the project as /appmetrics-dash is reachable', async function() {
+                const mockedIsMetricsEndpoint = sinon.stub().returns(false);
+                mockedIsMetricsEndpoint.withArgs('host', 'port', '/appmetrics-dash').returns(true);
+                metricsStatusChecker.__set__('isMetricsEndpoint', mockedIsMetricsEndpoint);
+                const { hosting, path } = await getMetricsDashboardHostAndPath('host', 'port', 'projectid', 'nodejs');
+                hosting.should.equal('project');
+                path.should.equal('/appmetrics-dash/?theme=dark');
+            });
+        });
+        it('returns hosting as project when /swiftmetrics-dash is reachable regardless of project type', async function() {
+            const mockedIsMetricsEndpoint = sinon.stub().returns(false);
+            mockedIsMetricsEndpoint.withArgs('host', 'port', '/swiftmetrics-dash').returns(true);
+            metricsStatusChecker.__set__('isMetricsEndpoint', mockedIsMetricsEndpoint);
+            const { hosting, path } = await getMetricsDashboardHostAndPath('host', 'port', 'projectid', 'other');
+            hosting.should.equal('project');
+            path.should.equal('/swiftmetrics-dash/?theme=dark');
+        });
+        it('returns hosting as null when /metrics is reachable as only java is supported for /metrics', async function() {
+            const mockedIsMetricsEndpoint = sinon.stub().returns(false);
+            mockedIsMetricsEndpoint.withArgs('host', 'port', '/metrics').returns(true);
+            metricsStatusChecker.__set__('isMetricsEndpoint', mockedIsMetricsEndpoint);
+            const hostingAndPath = await getMetricsDashboardHostAndPath('host', 'port', 'projectid', 'other');
+            hostingAndPath.should.deep.equal({ hosting: null, path: null });
+        });
+        it('returns hosting as null as no endpoints are active', async function() {
+            const mockedIsMetricsEndpoint = sinon.stub().returns(false);
+            metricsStatusChecker.__set__('isMetricsEndpoint', mockedIsMetricsEndpoint);
+            const hostingAndPath = await getMetricsDashboardHostAndPath('host', 'port', 'projectid', 'java');
+            hostingAndPath.should.deep.equal({ hosting: null, path: null });
+        });
+        it('throws an error as isMetricsEndpoint throws an error', function() {
+            metricsStatusChecker.__set__('isMetricsEndpoint', sinon.stub.rejects);
+            return getMetricsDashboardHostAndPath('host', 'port').should.eventually.be.rejected;
+        });
+    });
     describe('getActiveMetricsURLs(host, port)', function() {
         const { getActiveMetricsURLs } = metricsStatusChecker;
         it('returns all endpoints as true as isMetricsEndpoint is stubbed to always return true', async function() {
