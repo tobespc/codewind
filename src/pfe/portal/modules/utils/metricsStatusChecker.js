@@ -52,13 +52,42 @@ const VALID_METRIC_ENDPOINT = {
   }
 }
 
+async function getMetricStatusForProject(project) {
+  const { language, host, ports: { internalPort }, appStatus } = project;
+  const projectPath = project.projectPath();
+
+  const running = appStatus === 'started';
+
+  // file system checks
+  const appmetricsPackage = await isAppmetricsInFileSystem(projectPath, language);
+  // const microprofilePackage = await 
+
+  // endpoints checks
+  const metricEndpoints = await getActiveMetricsURLs(host, internalPort);
+  const metricsEndpoint = metricEndpoints[VALID_METRIC_ENDPOINT.metrics.endpoint];
+  const appmetricsEndpoint = metricEndpoints[VALID_METRIC_ENDPOINT.appmetricsDash.endpoint] ||
+                              metricEndpoints[VALID_METRIC_ENDPOINT.javametricsDash.endpoint] ||
+                              metricEndpoints[VALID_METRIC_ENDPOINT.swiftmetricsDash.endpoint];
+  const metricsAvailable = true && (metricsEndpoint || appmetricsEndpoint)
+
+  return {
+    metricsAvailable,
+    running,
+    metricsEndpoint,
+    appmetricsEndpoint,
+    microprofilePackage: true,
+    appmetricsPackage,
+    performanceEnable: true
+  }
+}
+
 /**
  * @param {*} projectPath
  * @param {*} projectLanguage
  * @returns {Promise<Boolean>} The projects supports metrics,
  * based on the values of its build-file.
  */
-async function isMetricsAvailable(projectPath, projectLanguage) {
+async function isAppmetricsInFileSystem(projectPath, projectLanguage) {
   log.debug(`checking if metricsAvailable for ${projectLanguage} project`);
   const fileToCheck = filesToCheck[projectLanguage];
   if (!fileToCheck) {
@@ -93,6 +122,14 @@ async function doesMetricsPackageExist(pathOfFileToCheck, projectLanguage) {
   }
   log.debug(`doesMetricsPackageExist returning ${metricsPackageExists}`);
   return metricsPackageExists;
+}
+
+async function hasMicroprofileMetrics(filePath) {
+  const pomExists = await fs.pathExists(filePath);
+  if (!pomExists) return false;
+  const openLibertyString = '<artifactId>microprofile</artifactId>';
+  const contents = await fs.readFile(filePath, 'utf8');
+  return contents.includes(openLibertyString);
 }
 
 async function getMetricsDashboardHostAndPath(host, port, projectID, projectLanguage) {
@@ -208,7 +245,8 @@ function isPrometheusFormat(string) {
 }
 
 module.exports = {
-  isMetricsAvailable,
+  getMetricStatusForProject,
+  isMetricsAvailable: isAppmetricsInFileSystem,
   getActiveMetricsURLs,
   getMetricsDashboardHostAndPath,
 }
