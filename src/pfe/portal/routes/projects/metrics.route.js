@@ -80,16 +80,6 @@ router.get('/api/v1/projects/:id/metrics/status', checkProjectExists, async func
   }
 });
 
-router.get('/api/v1/projects/:id/metrics/endpoints', checkProjectExists, async function (req, res) {
-  const { host, ports: { internalPort } } = getProjectFromReq(req);
-  try {
-    const metricEndpoints = await getActiveMetricsURLs(host, internalPort);
-    res.send(metricEndpoints);
-  } catch (err) {
-    res.status(500).send(err);
-  }
-});
-
 /**
  * Returns metrics data for a project (given a list of metrics types in req.body.types)
  * @param id, the id of the project

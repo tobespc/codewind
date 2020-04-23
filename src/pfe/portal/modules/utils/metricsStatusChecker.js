@@ -52,6 +52,12 @@ const VALID_METRIC_ENDPOINT = {
   }
 }
 
+const APPMETRIC_ENDPOINTS = [
+  VALID_METRIC_ENDPOINT.appmetricsDash.endpoint,
+  VALID_METRIC_ENDPOINT.javametricsDash.endpoint,
+  VALID_METRIC_ENDPOINT.swiftmetricsDash.endpoint,
+];
+
 async function getMetricStatusForProject(project) {
   const { language, host, ports: { internalPort }, appStatus } = project;
   const projectPath = project.projectPath();
@@ -60,22 +66,20 @@ async function getMetricStatusForProject(project) {
 
   // file system checks
   const appmetricsPackage = await isAppmetricsInFileSystem(projectPath, language);
-  // const microprofilePackage = await 
+  const microprofilePackage = await hasMicroprofileMetrics(projectPath, language);
 
   // endpoints checks
-  const metricEndpoints = await getActiveMetricsURLs(host, internalPort);
-  const metricsEndpoint = metricEndpoints[VALID_METRIC_ENDPOINT.metrics.endpoint];
-  const appmetricsEndpoint = metricEndpoints[VALID_METRIC_ENDPOINT.appmetricsDash.endpoint] ||
-                              metricEndpoints[VALID_METRIC_ENDPOINT.javametricsDash.endpoint] ||
-                              metricEndpoints[VALID_METRIC_ENDPOINT.swiftmetricsDash.endpoint];
-  const metricsAvailable = true && (metricsEndpoint || appmetricsEndpoint)
+  const endpoints = await getActiveMetricsURLs(host, internalPort);
+  const metricsEndpoint = (endpoints[VALID_METRIC_ENDPOINT.metrics.endpoint]) ? VALID_METRIC_ENDPOINT.metrics.endpoint : false;
+  const [appmetricsEndpoint = false] = Object.keys(endpoints).filter(key => APPMETRIC_ENDPOINTS.includes(key) && endpoints[key]);
+  const metricsAvailable = (metricsEndpoint || appmetricsEndpoint) ? true : false;
 
   return {
     metricsAvailable,
     running,
     metricsEndpoint,
     appmetricsEndpoint,
-    microprofilePackage: true,
+    microprofilePackage,
     appmetricsPackage,
     performanceEnable: true
   }
@@ -124,7 +128,9 @@ async function doesMetricsPackageExist(pathOfFileToCheck, projectLanguage) {
   return metricsPackageExists;
 }
 
-async function hasMicroprofileMetrics(filePath) {
+async function hasMicroprofileMetrics(projectPath, projectLanguage) {
+  if (projectLanguage !== 'java') return false;
+  const filePath = path.join(projectPath, filesToCheck[projectLanguage]);
   const pomExists = await fs.pathExists(filePath);
   if (!pomExists) return false;
   const openLibertyString = '<artifactId>microprofile</artifactId>';
