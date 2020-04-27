@@ -93,25 +93,25 @@ class CapabilitiesPanel extends React.Component {
         let feature = displayModelTemplate.find(element => element.id == "ProjectStatus");
         feature.status = capabilityData.running
 
-        console.log('capabilityData.capabilities', capabilityData.capabilities)
+        console.log('capabilityData', capabilityData)
 
 
         // We always want to display all the rows in the UI model so update status with results from the capabilities API
-        if (capabilityData.capabilities) {
+        if (capabilityData) {
             feature = displayModelTemplate.find(element => element.id == "LoadRunner");
-            if (feature) feature.status = capabilityData.capabilities.loadrunner
+            if (feature) feature.status = capabilityData.performanceEnable
 
             feature = displayModelTemplate.find(element => element.id == "LiveMetrics");
-            if (feature) feature.status = capabilityData.capabilities.liveMetrics
+            if (feature) feature.status = capabilityData.metricsAvailable
 
             feature = displayModelTemplate.find(element => element.id == "Comparisons");
-            if (feature)  feature.status = capabilityData.capabilities.metricsCollections
+            if (feature)  feature.status = capabilityData.performanceEnable
 
             feature = displayModelTemplate.find(element => element.id == "TimedComparisons");
-            if (feature)  feature.status = capabilityData.capabilities.metricsCollectionsTimed
+            if (feature)  feature.status = capabilityData.appmetricsPackage
 
-            feature = displayModelTemplate.find(element => element.id == "Profiling");
-            if (feature)  feature.status = capabilityData.capabilities.profiling
+            feature = displayModelTemplate.find(element => element.id == "metricsEndPoint");
+            if (feature)  feature.status = capabilityData.appmetricsPackage
         }
 
         return displayModelTemplate;
